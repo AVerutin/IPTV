@@ -11,7 +11,7 @@ Channel::Channel()
     tvgEpg = "";
     tvgShift = 0;
     groupName = "";
-    audioTrack = "";
+    audioTrack = "RU";
     radio = false;
     aspect = "16:9";
     crop = "";
@@ -150,6 +150,18 @@ QString Channel::getGroupName() const
 }
 
 
+/// Внешний ключ на таблицу групп
+void Channel::setGroupUid(int id)
+{
+    this->groupUid = id;
+}
+
+int Channel::getGroupUid() const
+{
+    return this->groupUid;
+}
+
+
 /// audiotrack
 void Channel::setAudioTrack(const QString &track)
 {
@@ -159,6 +171,18 @@ void Channel::setAudioTrack(const QString &track)
 QString Channel::getAudioTrack() const
 {
     return this->audioTrack;
+}
+
+
+/// Внешний ключ на таблицу звуковых дорожек
+void Channel::setAudioTrackUid(int id)
+{
+    this->audioTrackUid = id;
+}
+
+int Channel::getAudioTrackUid() const
+{
+    return this->audioTrackUid;
 }
 
 

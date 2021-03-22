@@ -113,6 +113,7 @@ void Database::dbInit()
             "`id`	INTEGER NOT NULL,"
             "`playlist`	INTEGER NOT NULL,"
             "`channel`	INTEGER NOT NULL,"
+            "`position`	INTEGER NOT NULL DEFAULT 1,"
             "FOREIGN KEY(`playlist`) REFERENCES `playlists`(`id`),"
             "FOREIGN KEY(`channel`) REFERENCES `channels`(`id`),"
             "PRIMARY KEY(`id` AUTOINCREMENT)"
@@ -193,7 +194,7 @@ void Database::dbClose()
 // Управление группами каналов
 
 /// Добавить новую группу
-QList<Group> Database::addGroup(const QString &grpName)
+int Database::addGroup(const QString &grpName)
 {
     if (!grpName.isEmpty())
         {
@@ -207,9 +208,9 @@ QList<Group> Database::addGroup(const QString &grpName)
             }
         }
 
-      QList<Group> result = getGroups();
+    int result = getLastId();
 
-      return result;
+    return result;
 }
 
 
@@ -243,7 +244,7 @@ QString Database::getGroupName(int uid)
 /// Получить идентификатор группы по наименованию
 int Database::getGroupId(const QString &name)
 {
-    int result = 0;
+    int result = -1;
     if (name.size()>0)
     {
         QString queryStr = "SELECT `id` FROM `groups` WHERE `group`='%1';";
@@ -352,7 +353,7 @@ bool Database::clearGroups()
 // Управление звуковыми дорожками
 
 /// Добавить новую звуковую дорожку в БД
-QList<Track> Database::addTrack(const QString &trkName)
+int Database::addTrack(const QString &trkName)
 {
     if (!trkName.isEmpty())
     {
@@ -366,7 +367,7 @@ QList<Track> Database::addTrack(const QString &trkName)
         }
     }
 
-    QList<Track> result = getTracks();
+    int result = getLastId();
 
     return result;
 }
@@ -402,7 +403,7 @@ QString Database::getTrackName(int uid)
 /// Получить идентификатор звуковой дорожки по наименованию
 int Database::getTrackId(const QString &name)
 {
-    int result = 0;
+    int result = -1;
     if (name.size()>0)
     {
         QString queryStr = "SELECT `id` FROM `tracks` WHERE `track`='%1';";
@@ -518,8 +519,8 @@ QList<Channel> Database::addChannel(const Channel &channel)
         "%11,'%12','%13',%14,%15,%16,%17,%18,'%19','%20','%21','%22');";
     queryStr = queryStr.arg(channel.getName(), QString::number(channel.getPosition()), QString::number(channel.getDuration()));
     queryStr = queryStr.arg(channel.getTvgId(), channel.getTvgName(), channel.getTvgLogo());
-    queryStr = queryStr.arg(channel.getTvgEpg(), QString::number(channel.getTvgShift()), channel.getGroupName());
-    queryStr = queryStr.arg(channel.getAudioTrack(), channel.isRadio() ? "1" : "0", channel.getAspectRatio());
+    queryStr = queryStr.arg(channel.getTvgEpg(), QString::number(channel.getTvgShift()), QString::number(channel.getGroupUid()));
+    queryStr = queryStr.arg(QString::number(channel.getAudioTrackUid()), channel.isRadio() ? "1" : "0", channel.getAspectRatio());
     queryStr = queryStr.arg(channel.getCrop(), channel.isRecordable() ? "1" : "0", channel.isCensored() ? "1" : "0");
     queryStr = queryStr.arg(channel.isAgeRestricted() ? "1" : "0", channel.isMono() ? "1" : "0", channel.isNameAsKey() ? "1" : "0");
     queryStr = queryStr.arg(channel.getUrlM3u(), channel.getUrl(), channel.getUserAgent(), channel.getHttpReferrer());
@@ -547,7 +548,7 @@ QList<Channel> Database::getChannels()
     "FROM `channels` ch "
         "INNER JOIN `groups` gr on `ch`.`group` = `gr`.`id` "
         "INNER JOIN `tracks` tr on `ch`.`track` = `tr`.`id` "
-    "ORDER BY `ch`.`name`;";
+    "ORDER BY `gr`.`group`, `ch`.`name`;";
 
     bool res = query->exec(queryStr);
     if (!res)
@@ -971,7 +972,7 @@ bool Database::clearPlaylists()
 // Управление соответствием списков воспроизведения и каналов
 
 /// Установить соответствие списка воспроизведения и канала
-bool Database::setRelation(int plId, int chId)
+bool Database::setRelation(int plId, int chId, int chPos)
 {
     bool result = false;
 
@@ -990,8 +991,8 @@ bool Database::setRelation(int plId, int chId)
         if (!related)
         {
             // Если нет, установить
-            queryStr = "INSERT INTO `relations` (`playlist`, `channel`) VALUES (%1, %2);";
-            queryStr = queryStr.arg(plId, chId);
+            queryStr = "INSERT INTO `relations` (`playlist`, `channel`, `position`) VALUES (%1, %2, %3);";
+            queryStr = queryStr.arg(plId, chId, chPos);
 
             related = query->exec(queryStr);
             if (!related)
@@ -1033,6 +1034,32 @@ bool Database::clearRelation(int plId, int chId)
             {
                 logger->error(sdb.lastError().text(), unitName);
             }
+        }
+    }
+
+    return result;
+}
+
+
+/// Получить идентификатор последней вставленной записи в БД
+int Database::getLastId()
+{
+    int result = -1;
+
+    QString queryStr = "SELECT last_insert_rowid() `last_id`;";
+
+    bool res = query->exec(queryStr);
+    if (!res)
+    {
+        logger->error(sdb.lastError().text(), unitName);
+    }
+    else
+    {
+        QSqlRecord rec = query->record();
+
+        while (query->next())
+        {
+            result = query->value(rec.indexOf("last_id")).toInt();
         }
     }
 

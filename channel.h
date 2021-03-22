@@ -28,8 +28,12 @@ public:
     int getTvgShift() const;
     void setGroupName(const QString &);
     QString getGroupName() const;
+    void setGroupUid(int);
+    int getGroupUid() const;
     void setAudioTrack(const QString &);
     QString getAudioTrack() const;
+    void setAudioTrackUid(int);
+    int getAudioTrackUid() const;
     void setRadio(bool);
     bool isRadio() const;
     void setAspectRatio(const QString &);
@@ -66,7 +70,9 @@ private:
     QString tvgEpg;
     int tvgShift;
     QString groupName;
+    int groupUid;
     QString audioTrack;
+    int audioTrackUid;
     bool radio;
     QString aspect;
     QString crop;

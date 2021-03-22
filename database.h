@@ -17,7 +17,7 @@ public:
     void dbClose();
 
     // Группы каналов
-    QList<Group> addGroup(const QString &);
+    int addGroup(const QString &);
     QString getGroupName(int);
     int getGroupId(const QString &);
     QList<Group> getGroups();
@@ -26,7 +26,7 @@ public:
     bool clearGroups();
 
     // Звуковые дорожки
-    QList<Track> addTrack(const QString &);
+    int addTrack(const QString &);
     QString getTrackName(int);
     int getTrackId(const QString &);
     QList<Track> getTracks();
@@ -52,7 +52,7 @@ public:
     bool clearPlaylists();
 
     // Отношения каналов и списков воспроизведения
-    bool setRelation(int, int);
+    bool setRelation(int, int, int);
     bool clearRelation(int, int);
 
 private:
@@ -60,6 +60,8 @@ private:
     QSqlQuery *query;
     QString unitName;
     Logger *logger;
+
+    int getLastId();
 };
 
 #endif // DATABASE_H
