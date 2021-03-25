@@ -11,6 +11,8 @@ CONFIG += c++11
 SOURCES += \
     channel.cpp \
     database.cpp \
+    formchanneledit.cpp \
+    formchannels.cpp \
     group.cpp \
     logger.cpp \
     main.cpp \
@@ -23,6 +25,8 @@ HEADERS += \
     channel.h \
     database.h \
     datatypes.h \
+    formchanneledit.h \
+    formchannels.h \
     formmain.h \
     group.h \
     logger.h \
@@ -34,3 +38,11 @@ HEADERS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    iptv.qrc
+
+win32 {
+        RC_FILE += icon.rc
+        OTHER_FILES += icon.rc
+}

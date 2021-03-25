@@ -208,7 +208,7 @@ int Database::addGroup(const QString &grpName)
             }
         }
 
-    int result = getLastId();
+    int result = query->lastInsertId().toInt();
 
     return result;
 }
@@ -232,7 +232,7 @@ QString Database::getGroupName(int uid)
             QSqlRecord rec = query->record();
             while (query->next())
             {
-                result = query->value(rec.indexOf("name")).toString();
+                result = query->value(rec.indexOf("name")).toString().trimmed();
             }
         }
     }
@@ -284,7 +284,7 @@ QList<Group> Database::getGroups()
         {
             Group grp;
             grp.setId(query->value(rec.indexOf("id")).toInt());
-            grp.setName(query->value(rec.indexOf("group")).toString());
+            grp.setName(query->value(rec.indexOf("group")).toString().trimmed());
             result.append(grp);
         }
     }
@@ -367,7 +367,7 @@ int Database::addTrack(const QString &trkName)
         }
     }
 
-    int result = getLastId();
+    int result = query->lastInsertId().toInt();
 
     return result;
 }
@@ -391,7 +391,7 @@ QString Database::getTrackName(int uid)
             QSqlRecord rec = query->record();
             while (query->next())
             {
-                result = query->value(rec.indexOf("name")).toString();
+                result = query->value(rec.indexOf("name")).toString().trimmed();
             }
         }
     }
@@ -443,7 +443,7 @@ QList<Track> Database::getTracks()
         {
             Track trk;
             trk.setId(query->value(rec.indexOf("id")).toInt());
-            trk.setName(query->value(rec.indexOf("track")).toString());
+            trk.setName(query->value(rec.indexOf("track")).toString().trimmed());
             result.append(trk);
         }
     }
@@ -562,28 +562,28 @@ QList<Channel> Database::getChannels()
         {
             Channel channel;
             channel.setBaseId(query->value(rec.indexOf("base_id")).toInt());
-            channel.setName(query->value(rec.indexOf("name")).toString());
+            channel.setName(query->value(rec.indexOf("name")).toString().trimmed());
             channel.setPosition(query->value(rec.indexOf("position")).toInt());
             channel.setDuration(query->value(rec.indexOf("duration")).toInt());
-            channel.setTvgId(query->value(rec.indexOf("tvg_id")).toString());
-            channel.setTvgName(query->value(rec.indexOf("tvg_name")).toString());
-            channel.setTvgLogo(query->value(rec.indexOf("tvg_logo")).toString());
-            channel.setTvgEpg(query->value(rec.indexOf("tvg_epg")).toString());
+            channel.setTvgId(query->value(rec.indexOf("tvg_id")).toString().trimmed());
+            channel.setTvgName(query->value(rec.indexOf("tvg_name")).toString().trimmed());
+            channel.setTvgLogo(query->value(rec.indexOf("tvg_logo")).toString().trimmed());
+            channel.setTvgEpg(query->value(rec.indexOf("tvg_epg")).toString().trimmed());
             channel.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            channel.setGroupName(query->value(rec.indexOf("group")).toString());
-            channel.setAudioTrack(query->value(rec.indexOf("track")).toString());
+            channel.setGroupName(query->value(rec.indexOf("group")).toString().trimmed());
+            channel.setAudioTrack(query->value(rec.indexOf("track")).toString().trimmed());
             channel.setRadio(query->value(rec.indexOf("radio")).toInt());
-            channel.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            channel.setCrop(query->value(rec.indexOf("crop")).toString());
+            channel.setAspectRatio(query->value(rec.indexOf("aspect")).toString().trimmed());
+            channel.setCrop(query->value(rec.indexOf("crop")).toString().trimmed());
             channel.setRecordable(query->value(rec.indexOf("recordable")).toInt());
             channel.setCensored(query->value(rec.indexOf("censored")).toInt());
             channel.setAgeRestricted(query->value(rec.indexOf("age_restrict")).toInt());
             channel.setMono(query->value(rec.indexOf("mono")).toInt());
             channel.setNameAsKey(query->value(rec.indexOf("name_as_key")).toInt());
-            channel.setUrlM3u(query->value(rec.indexOf("url_m3u")).toString());
-            channel.setUrl(query->value(rec.indexOf("url")).toString());
-            channel.setUserAgent(query->value(rec.indexOf("user_agent")).toString());
-            channel.setHttpReferrer(query->value(rec.indexOf("http_referrer")).toString());
+            channel.setUrlM3u(query->value(rec.indexOf("url_m3u")).toString().trimmed());
+            channel.setUrl(query->value(rec.indexOf("url")).toString().trimmed());
+            channel.setUserAgent(query->value(rec.indexOf("user_agent")).toString().trimmed());
+            channel.setHttpReferrer(query->value(rec.indexOf("http_referrer")).toString().trimmed());
 
             result.append(channel);
         }
@@ -1039,31 +1039,4 @@ bool Database::clearRelation(int plId, int chId)
 
     return result;
 }
-
-
-/// Получить идентификатор последней вставленной записи в БД
-int Database::getLastId()
-{
-    int result = -1;
-
-    QString queryStr = "SELECT last_insert_rowid() `last_id`;";
-
-    bool res = query->exec(queryStr);
-    if (!res)
-    {
-        logger->error(sdb.lastError().text(), unitName);
-    }
-    else
-    {
-        QSqlRecord rec = query->record();
-
-        while (query->next())
-        {
-            result = query->value(rec.indexOf("last_id")).toInt();
-        }
-    }
-
-    return result;
-}
-
 

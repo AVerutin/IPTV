@@ -29,54 +29,6 @@ Playlist Parser::getPlaylist()
 }
 
 
-/// Получить параметры списка воспроизведения
-//void Parser::parse()
-//{
-//    listFile = new QFile(playlistName);
-//    if ((listFile->exists()) && (listFile->open(QIODevice::ReadOnly)))
-//    {
-//        QString line = "";
-//        while(!listFile->atEnd())
-//        {
-//            line = listFile->readLine().trimmed();
-//            if (!line.isEmpty())
-//            {
-//                if (line.startsWith("#EXTM3U"))
-//                {
-//                    // Заголовок списка
-//                    playlist = getListTitle(line);
-//                }
-//                else if (line.startsWith("#EXTINF"))
-//                {
-//                    // Заголовок канала
-//                    Channel chan = getChannelInfo(line);
-//                    channels.append(chan);
-//                }
-//                else if (line.startsWith("#PLAYLIST"))
-//                {
-//                    // Наименование списка
-//                    QString listName = getListName(line);
-//                    playlist.setName(listName);
-//                }
-//                else if (line.startsWith("#EXTGRP"))
-//                {
-//                    // Наименование группы
-//                    QString group = getGroupName(line);
-//                    groupName = group;
-//                }
-//                else if (line.startsWith("#EXTVLCOPT"))
-//                {
-//                    // Дополнительные параматры VLC
-//                }
-//                else if (line.contains("://"))
-//                {
-//                    // Ссылка на источник канала
-//                }
-//            }
-//        }
-//    }
-//}
-
 
 /// Получить список каналов из списка воспроизведения
 QList<Channel> Parser::getChannels()
@@ -212,7 +164,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString url = re.cap(1);
-          result.setUrlTvg(url);
+          result.setUrlTvg(url.trimmed());
         }
 
       re = QRegExp("url-xml=\"(.*)\"");
@@ -222,7 +174,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString url = re.cap(1);
-          result.setUrlTvg(url);
+          result.setUrlTvg(url.trimmed());
         }
 
       // cache="..."
@@ -232,7 +184,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString cache = re.cap(1);
-          result.setCache(cache.toInt());
+          result.setCache(cache.trimmed().toInt());
         }
 
       // deinterlace="..."
@@ -242,7 +194,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString deinterlace = re.cap(1);
-          result.setDeinterlace(deinterlace.toInt());
+          result.setDeinterlace(deinterlace.trimmed().toInt());
         }
 
       // aspect-ratio="..."
@@ -252,7 +204,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString ratio = re.cap(1);
-          result.setAspectRatio(ratio);
+          result.setAspectRatio(ratio.trimmed());
         }
 
       // crop="..."
@@ -262,7 +214,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString crop = re.cap(1);
-          result.setCrop(crop);
+          result.setCrop(crop.trimmed());
         }
 
       // refresh="..."
@@ -272,7 +224,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString refresh = re.cap(1);
-          result.setRefreshPeriod(refresh.toInt());
+          result.setRefreshPeriod(refresh.trimmed().toInt());
         }
 
       // m3uautoload=1
@@ -282,7 +234,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString autoload = re.cap(1);
-          result.setAutoload(autoload.toInt());
+          result.setAutoload(autoload.trimmed().toInt());
         }
 
       // tvg-shift=(...-2, -1, 0, +1, +2, ...)
@@ -292,7 +244,7 @@ Playlist Parser::getListTitle(const QString &listTitle)
         {
           lastPos += re.matchedLength();
           QString shift = re.cap(1);
-          result.setTvgShift(shift.toInt());
+          result.setTvgShift(shift.trimmed().toInt());
         }
     }
 
@@ -311,7 +263,7 @@ QString Parser::getGroupName(const QString &grpName)
   while((lastPos = re.indexIn(grpName, lastPos)) != -1)
     {
       lastPos += re.matchedLength();
-      res = re.cap(1);
+      res = re.cap(1).trimmed();
     }
 
   return res;
@@ -329,7 +281,7 @@ QString Parser::getListName(const QString &name)
   while((lastPos = re.indexIn(name, lastPos)) != -1)
     {
       lastPos += re.matchedLength();
-      res = re.cap(1);
+      res = re.cap(1).trimmed();
     }
 
   return res;
@@ -347,7 +299,7 @@ VlcInfo Parser::getVlcOpt(const QString &vlc)
   while((lastPos = re.indexIn(vlc, lastPos)) != -1)
     {
       lastPos += re.matchedLength();
-      res.userAgent = re.cap(1);
+      res.userAgent = re.cap(1).trimmed();
     }
 
   re = QRegExp("#EXTVLCOPT:http-referrer=(.*)");
@@ -356,7 +308,7 @@ VlcInfo Parser::getVlcOpt(const QString &vlc)
   while((lastPos = re.indexIn(vlc, lastPos)) != -1)
     {
       lastPos += re.matchedLength();
-      res.httpReferrer = re.cap(1);
+      res.httpReferrer = re.cap(1).trimmed();
     }
 
   return res;
@@ -379,7 +331,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(1);
-          res.setDuration(val.toInt());
+          res.setDuration(val.trimmed().toInt());
         }
 
       // tvg-id="..."
@@ -389,7 +341,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setTvgId(val);
+          res.setTvgId(val.trimmed());
         }
 
       // tvg-name="..."
@@ -399,7 +351,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setTvgName(val);
+          res.setTvgName(val.trimmed());
         }
 
       // tvg-logo="..."
@@ -409,7 +361,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setTvgLogo(val);
+          res.setTvgLogo(val.trimmed());
         }
 
       // tvg-epg="..."
@@ -419,7 +371,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setTvgEpg(val);
+          res.setTvgEpg(val.trimmed());
         }
 
       // tvg-shift="..."
@@ -429,7 +381,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setTvgShift(val.toInt());
+          res.setTvgShift(val.trimmed().toInt());
         }
 
       // group-title="..."
@@ -439,7 +391,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setGroupName(val);
+          res.setGroupName(val.trimmed());
         }
 
       // radio="..."
@@ -449,7 +401,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setRadio(val.toInt());
+          res.setRadio(val.trimmed().toInt());
         }
 
       // aspect-ratio="..."
@@ -459,7 +411,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setAspectRatio(val);
+          res.setAspectRatio(val.trimmed());
         }
 
       // audio-track="..."
@@ -469,7 +421,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setAudioTrack(val);
+          res.setAudioTrack(val.trimmed());
         }
 
       // recordable="..."
@@ -479,7 +431,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setRecordable(val=="true");
+          res.setRecordable(val.trimmed() == "true");
         }
 
       // censored="..."
@@ -489,7 +441,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setCensored(val.toInt());
+          res.setCensored(val.trimmed().toInt());
         }
 
       // agerestriction="..."
@@ -499,7 +451,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setAgeRestricted(val.toInt());
+          res.setAgeRestricted(val.trimmed().toInt());
         }
 
       // url-m3u="..."
@@ -509,7 +461,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setUrlM3u(val);
+          res.setUrlM3u(val.trimmed());
         }
 
       // nameaskey="..."
@@ -519,7 +471,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setNameAsKey(val.toInt());
+          res.setNameAsKey(val.trimmed().toInt());
         }
 
       // crop="..."
@@ -529,7 +481,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setCrop(val);
+          res.setCrop(val.trimmed());
         }
 
       // mono="..."
@@ -539,7 +491,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(2);
-          res.setMono(val.toInt());
+          res.setMono(val.trimmed().toInt());
         }
 
       // Название канала после запятой
@@ -549,7 +501,7 @@ Channel Parser::getChannelInfo(const QString &chan)
         {
           lastPos += re.matchedLength();
           QString val = re.cap(1);
-          res.setName(val);
+          res.setName(val.trimmed());
         }
     }
 

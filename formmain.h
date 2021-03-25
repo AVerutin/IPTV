@@ -7,6 +7,7 @@
 
 #include "parser.h"
 #include "database.h"
+#include "formchannels.h"
 
 class FormMain : public QMainWindow
 {
@@ -15,10 +16,42 @@ class FormMain : public QMainWindow
 public:
     FormMain(QWidget *parent = nullptr);
     ~FormMain();
+
 private:
-    void parseList();
+    void createWidget();
+    void createMenu();
+
+    // Элементы главного меню
+    QMenuBar *mainMenu;
+    QMenu *mnPlaylists;
+    QMenu *mnChannels;
+    QAction *aCreatePlaylist;
+    QAction *aEditPlaylist;
+    QAction *aRemovePlaylist;
+    QAction *aExportPlaylist;
+    QAction *aShowChannels;
+    QAction *aImportChannels;
+    QAction *aQuit;
+
+    // Элементы главного виджета
+    QTableWidget *twPlaylists;
+    QPushButton *btnCreate;
+    QPushButton *btnEdit;
+    QPushButton *btnRemove;
+    QPushButton *btnExport;
+    QStatusBar *statBar;
 
     Parser *parser;
     Database *sdb;
+    FormChannels *formChannels;
+
+private slots:
+    void slotAppClose();
+    void slotCreatePlaylist();
+    void slotEditPlaylist();
+    void slotExportPlaylist();
+    void slotRemovePlaylist();
+    void slotImportChannels();
+    void slotShowChannels();
 };
 #endif // FORMMAIN_H

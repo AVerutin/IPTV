@@ -60,8 +60,6 @@ private:
     QSqlQuery *query;
     QString unitName;
     Logger *logger;
-
-    int getLastId();
 };
 
 #endif // DATABASE_H

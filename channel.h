@@ -59,6 +59,8 @@ public:
     void setHttpReferrer(const QString &);
     QString getHttpReferrer() const;
 
+    const Channel &operator=(const Channel &);
+
 private:
     int baseId;
     QString name;

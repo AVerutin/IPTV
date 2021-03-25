@@ -2,6 +2,7 @@
 
 Channel::Channel()
 {
+    baseId = 0;
     name = "";
     position = 1;
     duration = 0;
@@ -11,7 +12,9 @@ Channel::Channel()
     tvgEpg = "";
     tvgShift = 0;
     groupName = "";
+    groupUid = 0;
     audioTrack = "RU";
+    audioTrackUid = 0;
     radio = false;
     aspect = "16:9";
     crop = "";
@@ -330,3 +333,42 @@ QString Channel::getHttpReferrer() const
 }
 
 
+/// Перегрузка оператора присваиванию
+const Channel &Channel::operator=(const Channel &channel)
+{
+    this->name = channel.name;
+    this->position = channel.position;
+    this->duration = channel.duration;
+    this->tvgId = channel.tvgId;
+    this->tvgName = channel.tvgName;
+    this->tvgLogo = channel.tvgLogo;
+    this->tvgEpg = channel.tvgEpg;
+    this->tvgShift = channel.tvgShift;
+    this->groupUid = channel.groupUid;
+    this->groupName = channel.groupName;
+    this->audioTrackUid = channel.audioTrackUid;
+    this->audioTrack = channel.audioTrack;
+    this->aspect = channel.aspect;
+    this->crop = channel.crop;
+    this->recordable = channel.recordable;
+    this->censored = channel.censored;
+    this->ageRectricted = channel.ageRectricted;
+    this->mono = channel.mono;
+    this->nameAsKey = channel.nameAsKey;
+    this->urlM3u = channel.urlM3u;
+    this->url = channel.url;
+    this->userAgent = channel.userAgent;
+    this->httpReferrer = channel.httpReferrer;
+
+    return *this;
+}
+
+
+// /// Перегрузка оператора сравнения
+//bool operator==(const Channel &left, const Channel &right)
+//{
+//    bool result = false;
+//    result = left.getName() == right.getName();
+
+//    return result;
+//}
