@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QFile>
+#include <QCoreApplication>
 #include <QList>
 
 #include "playlist.h"

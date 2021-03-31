@@ -4,6 +4,10 @@ FormMain::FormMain(QWidget *parent)
     : QMainWindow(parent)
 {
     sdb = new Database();
+    sdb->openDb();
+    sdb->initDb();
+    logger = new Logger;
+    unitName = typeid(this).name();
     createWidget();
 
     // parseList();
@@ -11,6 +15,7 @@ FormMain::FormMain(QWidget *parent)
 
 FormMain::~FormMain()
 {
+    sdb->closeDb();
     delete sdb;
 }
 
@@ -119,11 +124,11 @@ void FormMain::slotImportChannels()
 
 
     // Пользователь отменил открытие файла
+    // QString listFileName = "E:\\Projects\\CPP\\m3u\\playlists\\23.03.2021.m3u";
+
     if (listFileName.isEmpty())
         return;
 
-
-    // QString listFileName = "E:\\Projects\\CPP\\m3u\\playlists\\5368.m3u";
 
     QString msg = tr("Читаем файл [%1]...");
     msg = msg.arg(listFileName);
@@ -134,10 +139,12 @@ void FormMain::slotImportChannels()
     QList<Channel> channels = parser->getChannels();
     msg = "Получено каналов: %1. Сохраняем в БД...";
     msg = msg.arg(channels.count());
+    statBar->showMessage(msg);
 
     // Сохраняем каналы в БД
     for (int i=0; i<channels.count(); i++)
     {
+        QCoreApplication::processEvents();
         Channel channel = channels.at(i);
 
         // Получаем идент группы
@@ -155,11 +162,18 @@ void FormMain::slotImportChannels()
             trackId = sdb->addTrack(channel.getAudioTrack());
         }
 
-
         channel.setGroupUid(groupId);
         channel.setAudioTrackUid(trackId);
+
         sdb->addChannel(channel);
+
+        msg = "Добавлен канал: %1";
+        msg = msg.arg(channel.getName());
+        statBar->showMessage(msg);
     }
+
+    msg = "Готово";
+    statBar->showMessage(msg);
 }
 
 

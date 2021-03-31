@@ -9,6 +9,7 @@
 #include "channel.h"
 #include "formchanneledit.h"
 #include "database.h"
+#include "logger.h"
 
 class FormChannels : public QDialog
 {
@@ -35,6 +36,8 @@ private:
     QList<Channel> channels;
     bool modified;
     Database *sdb;
+    Logger *logger;
+    QString unitName;
 
     void createWidget();
     void showChannels();

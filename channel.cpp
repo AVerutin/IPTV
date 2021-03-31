@@ -18,7 +18,7 @@ Channel::Channel()
     radio = false;
     aspect = "16:9";
     crop = "";
-    recordable = true;
+    recordable = false;
     censored = false;
     ageRectricted = false;
     mono = false;
@@ -96,12 +96,12 @@ QString Channel::getTvgId() const
 /// tvg_name
 void Channel::setTvgName(const QString &n)
 {
-    this->name = n;
+    this->tvgName = n;
 }
 
 QString Channel::getTvgName() const
 {
-    return this->name;
+    return this->tvgName;
 }
 
 

@@ -4,14 +4,12 @@ Database::Database()
 {
     logger = new Logger;
     unitName = typeid(this).name();
-    dbInit();
 }
 
-
-/// Инициализация подключения к базе данных
-void Database::dbInit()
+bool Database::openDb()
 {
-    sdb = QSqlDatabase::addDatabase("QSQLITE");
+    sdb = QSqlDatabase::addDatabase("QSQLITE", "IptvConnection");
+    sdb.setConnectOptions("QSQLITE_BUSY_TIMEOUT=5000");
     //  sdb.setDatabaseName("m3u.dat");
     //  sdb.setHostName("localhost");
     //  sdb.setUserName("admin");
@@ -19,15 +17,31 @@ void Database::dbInit()
 
     QString dbPath = QCoreApplication::applicationDirPath() + "/data.db";
     sdb.setDatabaseName(dbPath);
-    query = new QSqlQuery;
-
 
     // Подключение к базе данных
-    if (!sdb.open())
+    bool result = false;
+    try
     {
-          logger->error(sdb.lastError().text(), unitName);
+        result = sdb.open();
     }
-    else
+    catch (...)
+    {
+        QString msg = "Не удалось подключиться к базе данных [%1]";
+        msg = msg.arg(sdb.lastError().text());
+        logger->error(msg, unitName);
+    }
+
+    return result;
+}
+
+
+/// Инициализация подключения к базе данных
+void Database::initDb()
+{
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
+    // Подключение к базе данных
+    if (!sdb.isOpen())
     {
         /////////// DDL query ///////////
         QString str = "CREATE TABLE IF NOT EXISTS `groups` ("
@@ -36,10 +50,10 @@ void Database::dbInit()
             "PRIMARY KEY(`id` AUTOINCREMENT)"
         ");";
 
-        bool b = query->exec(str);
+        bool b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         str = "CREATE TABLE IF NOT EXISTS `tracks` ("
@@ -48,10 +62,10 @@ void Database::dbInit()
             "PRIMARY KEY(`id` AUTOINCREMENT)"
         ");";
 
-        b = query->exec(str);
+        b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         str = "CREATE TABLE IF NOT EXISTS `channels` ("
@@ -83,10 +97,10 @@ void Database::dbInit()
             "FOREIGN KEY(`group`) REFERENCES `groups`(`id`)"
         ");";
 
-        b = query->exec(str);
+        b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         str = "CREATE TABLE IF NOT EXISTS `playlists` ("
@@ -103,10 +117,10 @@ void Database::dbInit()
             "PRIMARY KEY(`id` AUTOINCREMENT)"
         ");";
 
-        b = query->exec(str);
+        b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         str = "CREATE TABLE IF NOT EXISTS `relations` ("
@@ -119,38 +133,38 @@ void Database::dbInit()
             "PRIMARY KEY(`id` AUTOINCREMENT)"
         ");";
 
-        b = query->exec(str);
+        b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         str = "CREATE INDEX `channels_id` ON `channels` (`id`	ASC);";
-        b = query->exec(str);
+        b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         str = "CREATE INDEX `playlists_id` ON `playlists` (`id`);";
-        b = query->exec(str);
+        b = query.exec(str);
         if (!b)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
         /////////// Data query ///////////
-        if (!query->exec("SELECT count(*) as rows_cnt FROM `groups`;"))
+        if (!query.exec("SELECT count(*) as rows_cnt FROM `groups`;"))
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
         int cnt = 0;
 
-        while (query->next())
+        while (query.next())
         {
-            cnt = query->value(rec.indexOf("rows_cnt")).toInt();
+            cnt = query.value(rec.indexOf("rows_cnt")).toInt();
             if (cnt==0)
             {
                 addGroup("Общие");
@@ -163,15 +177,15 @@ void Database::dbInit()
             }
         }
 
-        if (!query->exec("SELECT count(*) as rows_cnt FROM `tracks`;"))
+        if (!query.exec("SELECT count(*) as rows_cnt FROM `tracks`;"))
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
 
-        rec = query->record();
-        while (query->next())
+        rec = query.record();
+        while (query.next())
         {
-            cnt = query->value(rec.indexOf("rows_cnt")).toInt();
+            cnt = query.value(rec.indexOf("rows_cnt")).toInt();
             if (cnt==0)
             {
                 addTrack("RU");
@@ -184,9 +198,10 @@ void Database::dbInit()
 
 
 /// Закрытие покдлючения к базе данных
-void Database::dbClose()
+void Database::closeDb()
 {
     sdb.close();
+    QSqlDatabase::removeDatabase("iptv_connection");
 }
 
 
@@ -196,20 +211,21 @@ void Database::dbClose()
 /// Добавить новую группу
 int Database::addGroup(const QString &grpName)
 {
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (!grpName.isEmpty())
+    {
+        QString queryString = "INSERT INTO `groups` (`group`) VALUES ('%1');";
+        queryString = queryString.arg(grpName);
+
+        int res = query.exec(queryString);
+        if (!res)
         {
-          QString queryString = "INSERT INTO `groups` (`group`) VALUES ('%1');";
-          queryString = queryString.arg(grpName);
-
-          int res = query->exec(queryString);
-          if (!res)
-            {
-              logger->error(sdb.lastError().text(), unitName);
-            }
+            logger->error(query.lastError().text(), unitName);
         }
+    }
 
-    int result = query->lastInsertId().toInt();
-
+    int result = query.lastInsertId().toInt();
     return result;
 }
 
@@ -218,21 +234,23 @@ int Database::addGroup(const QString &grpName)
 QString Database::getGroupName(int uid)
 {
     QString result;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (uid>0)
     {
         QString queryStr = "SELECT `group` FROM `groups` WHERE `id`='%1';";
         queryStr = queryStr.arg(uid);
 
-        if (!query->exec(queryStr))
+        if (!query.exec(queryStr))
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
         else
         {
-            QSqlRecord rec = query->record();
-            while (query->next())
+            QSqlRecord rec = query.record();
+            while (query.next())
             {
-                result = query->value(rec.indexOf("name")).toString().trimmed();
+                result = query.value(rec.indexOf("name")).toString().trimmed();
             }
         }
     }
@@ -245,21 +263,23 @@ QString Database::getGroupName(int uid)
 int Database::getGroupId(const QString &name)
 {
     int result = -1;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (name.size()>0)
     {
         QString queryStr = "SELECT `id` FROM `groups` WHERE `group`='%1';";
         queryStr = queryStr.arg(name);
 
-        if (!query->exec(queryStr))
+        if (!query.exec(queryStr))
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
         else
         {
-            QSqlRecord rec = query->record();
-            while (query->next())
+            QSqlRecord rec = query.record();
+            while (query.next())
             {
-                result = query->value(rec.indexOf("id")).toInt();
+                result = query.value(rec.indexOf("id")).toInt();
             }
         }
     }
@@ -272,19 +292,21 @@ int Database::getGroupId(const QString &name)
 QList<Group> Database::getGroups()
 {
     QList<Group> result;
-    if (!query->exec("SELECT `id`, `group` FROM `groups` ORDER BY `group`;"))
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
+    if (!query.exec("SELECT `id`, `group` FROM `groups` ORDER BY `group`;"))
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
 
-        while (query->next())
+        while (query.next())
         {
             Group grp;
-            grp.setId(query->value(rec.indexOf("id")).toInt());
-            grp.setName(query->value(rec.indexOf("group")).toString().trimmed());
+            grp.setId(query.value(rec.indexOf("id")).toInt());
+            grp.setName(query.value(rec.indexOf("group")).toString().trimmed());
             result.append(grp);
         }
     }
@@ -297,15 +319,17 @@ QList<Group> Database::getGroups()
 bool Database::removeGroup(int uid)
 {
     bool result = false;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (uid>0)
     {
         QString queryStr = "DELETE FROM `groups` WHERE `id`='%1';";
         queryStr = queryStr.arg(uid);
-        result = query->exec(queryStr);
+        result = query.exec(queryStr);
 
         if (!result)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
     }
 
@@ -317,15 +341,17 @@ bool Database::removeGroup(int uid)
 bool Database::removeGroup(const QString &name)
 {
     bool result = false;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (name.size()>0)
     {
         QString queryStr = "DELETE FROM `groups` WHERE `group`='%1';";
         queryStr = queryStr.arg(name);
-        result = query->exec(queryStr);
+        result = query.exec(queryStr);
 
         if (!result)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
     }
 
@@ -337,12 +363,13 @@ bool Database::removeGroup(const QString &name)
 bool Database::clearGroups()
 {
     bool result = false;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
     QString queryStr = "DELETE FROM `groups`;";
-    result = query->exec(queryStr);
+    result = query.exec(queryStr);
 
     if (!result)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
 
     return result;
@@ -355,20 +382,21 @@ bool Database::clearGroups()
 /// Добавить новую звуковую дорожку в БД
 int Database::addTrack(const QString &trkName)
 {
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (!trkName.isEmpty())
     {
         QString queryString = "INSERT INTO `tracks` (`track`) VALUES ('%1');";
         queryString = queryString.arg(trkName);
 
-        int res = query->exec(queryString);
+        int res = query.exec(queryString);
         if (!res)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
     }
 
-    int result = query->lastInsertId().toInt();
-
+    int result = query.lastInsertId().toInt();
     return result;
 }
 
@@ -377,21 +405,23 @@ int Database::addTrack(const QString &trkName)
 QString Database::getTrackName(int uid)
 {
     QString result;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (uid>0)
     {
         QString queryStr = "SELECT `track` FROM `tracks` WHERE `id`='%1';";
         queryStr = queryStr.arg(uid);
 
-        if (!query->exec(queryStr))
+        if (!query.exec(queryStr))
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
         else
         {
-            QSqlRecord rec = query->record();
-            while (query->next())
+            QSqlRecord rec = query.record();
+            while (query.next())
             {
-                result = query->value(rec.indexOf("name")).toString().trimmed();
+                result = query.value(rec.indexOf("name")).toString().trimmed();
             }
         }
     }
@@ -404,21 +434,23 @@ QString Database::getTrackName(int uid)
 int Database::getTrackId(const QString &name)
 {
     int result = -1;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (name.size()>0)
     {
         QString queryStr = "SELECT `id` FROM `tracks` WHERE `track`='%1';";
         queryStr = queryStr.arg(name);
 
-        if (!query->exec(queryStr))
+        if (!query.exec(queryStr))
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
         else
         {
-            QSqlRecord rec = query->record();
-            while (query->next())
+            QSqlRecord rec = query.record();
+            while (query.next())
             {
-                result = query->value(rec.indexOf("id")).toInt();
+                result = query.value(rec.indexOf("id")).toInt();
             }
         }
     }
@@ -431,19 +463,21 @@ int Database::getTrackId(const QString &name)
 QList<Track> Database::getTracks()
 {
     QList<Track> result;
-    if (!query->exec("SELECT `id`, `track` FROM `tracks` ORDER BY `track`;"))
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
+    if (!query.exec("SELECT `id`, `track` FROM `tracks` ORDER BY `track`;"))
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
 
-        while (query->next())
+        while (query.next())
         {
             Track trk;
-            trk.setId(query->value(rec.indexOf("id")).toInt());
-            trk.setName(query->value(rec.indexOf("track")).toString().trimmed());
+            trk.setId(query.value(rec.indexOf("id")).toInt());
+            trk.setName(query.value(rec.indexOf("track")).toString().trimmed());
             result.append(trk);
         }
     }
@@ -456,15 +490,17 @@ QList<Track> Database::getTracks()
 bool Database::removeTrack(int uid)
 {
     bool result = false;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (uid>0)
     {
         QString queryStr = "DELETE FROM `tracks` WHERE `id`='%1';";
         queryStr = queryStr.arg(uid);
-        result = query->exec(queryStr);
+        result = query.exec(queryStr);
 
         if (!result)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
     }
 
@@ -476,15 +512,17 @@ bool Database::removeTrack(int uid)
 bool Database::removeTrack(const QString &name)
 {
     bool result = false;
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
     if (name.size()>0)
     {
         QString queryStr = "DELETE FROM `tracks` WHERE `track`='%1';";
         queryStr = queryStr.arg(name);
-        result = query->exec(queryStr);
+        result = query.exec(queryStr);
 
         if (!result)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
     }
 
@@ -495,12 +533,13 @@ bool Database::removeTrack(const QString &name)
 /// Удалить все звуковые дорожки в БД
 bool Database::clearTracks()
 {
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
     QString queryStr = "DELETE FROM `tracks`;";
-    bool result = query->exec(queryStr);
+    bool result = query.exec(queryStr);
 
     if (!result)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
 
     return result;
@@ -517,22 +556,37 @@ QList<Channel> Database::addChannel(const Channel &channel)
         "`group`,`track`,`radio`,`aspect`,`crop`,`recordable`,`censored`,`age_restrict`,`mono`,"
         "`name_as_key`,`url_m3u`,`url`,`user_agent`,`http_referrer`) VALUES ('%1',%2,%3,'%4','%5','%6','%7',%8,%9,%10,"
         "%11,'%12','%13',%14,%15,%16,%17,%18,'%19','%20','%21','%22');";
-    queryStr = queryStr.arg(channel.getName(), QString::number(channel.getPosition()), QString::number(channel.getDuration()));
-    queryStr = queryStr.arg(channel.getTvgId(), channel.getTvgName(), channel.getTvgLogo());
-    queryStr = queryStr.arg(channel.getTvgEpg(), QString::number(channel.getTvgShift()), QString::number(channel.getGroupUid()));
+
+    QString esc1 = channel.getName().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, QString::number(channel.getPosition()), QString::number(channel.getDuration()));
+
+    esc1 = channel.getTvgId().replace('\'', '`');
+    QString esc2 = channel.getTvgName().replace('\'', '`');
+    QString esc3 = channel.getTvgLogo().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, esc2, esc3);
+
+    esc1 = channel.getTvgEpg().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, QString::number(channel.getTvgShift()), QString::number(channel.getGroupUid()));
     queryStr = queryStr.arg(QString::number(channel.getAudioTrackUid()), channel.isRadio() ? "1" : "0", channel.getAspectRatio());
     queryStr = queryStr.arg(channel.getCrop(), channel.isRecordable() ? "1" : "0", channel.isCensored() ? "1" : "0");
     queryStr = queryStr.arg(channel.isAgeRestricted() ? "1" : "0", channel.isMono() ? "1" : "0", channel.isNameAsKey() ? "1" : "0");
-    queryStr = queryStr.arg(channel.getUrlM3u(), channel.getUrl(), channel.getUserAgent(), channel.getHttpReferrer());
 
-    bool res = query->exec(queryStr);
+    esc1 = channel.getUrlM3u().replace('\'', '`');
+    esc2 = channel.getUrl().replace('\'', '`');
+    esc3 = channel.getUserAgent().replace('\'', '`');
+    QString esc4 = channel.getHttpReferrer().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, esc2, esc3, esc4);
+
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        QString msg = "Не удалось добавить канал %1 => %2";
+        msg = msg.arg(channel.getName(), query.lastError().text());
+        logger->error(msg, unitName);
     }
 
     QList<Channel> result = getChannels();
-
     return result;
 }
 
@@ -550,40 +604,42 @@ QList<Channel> Database::getChannels()
         "INNER JOIN `tracks` tr on `ch`.`track` = `tr`.`id` "
     "ORDER BY `gr`.`group`, `ch`.`name`;";
 
-    bool res = query->exec(queryStr);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
+
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
-        while (query->next())
+        QSqlRecord rec = query.record();
+        while (query.next())
         {
             Channel channel;
-            channel.setBaseId(query->value(rec.indexOf("base_id")).toInt());
-            channel.setName(query->value(rec.indexOf("name")).toString().trimmed());
-            channel.setPosition(query->value(rec.indexOf("position")).toInt());
-            channel.setDuration(query->value(rec.indexOf("duration")).toInt());
-            channel.setTvgId(query->value(rec.indexOf("tvg_id")).toString().trimmed());
-            channel.setTvgName(query->value(rec.indexOf("tvg_name")).toString().trimmed());
-            channel.setTvgLogo(query->value(rec.indexOf("tvg_logo")).toString().trimmed());
-            channel.setTvgEpg(query->value(rec.indexOf("tvg_epg")).toString().trimmed());
-            channel.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            channel.setGroupName(query->value(rec.indexOf("group")).toString().trimmed());
-            channel.setAudioTrack(query->value(rec.indexOf("track")).toString().trimmed());
-            channel.setRadio(query->value(rec.indexOf("radio")).toInt());
-            channel.setAspectRatio(query->value(rec.indexOf("aspect")).toString().trimmed());
-            channel.setCrop(query->value(rec.indexOf("crop")).toString().trimmed());
-            channel.setRecordable(query->value(rec.indexOf("recordable")).toInt());
-            channel.setCensored(query->value(rec.indexOf("censored")).toInt());
-            channel.setAgeRestricted(query->value(rec.indexOf("age_restrict")).toInt());
-            channel.setMono(query->value(rec.indexOf("mono")).toInt());
-            channel.setNameAsKey(query->value(rec.indexOf("name_as_key")).toInt());
-            channel.setUrlM3u(query->value(rec.indexOf("url_m3u")).toString().trimmed());
-            channel.setUrl(query->value(rec.indexOf("url")).toString().trimmed());
-            channel.setUserAgent(query->value(rec.indexOf("user_agent")).toString().trimmed());
-            channel.setHttpReferrer(query->value(rec.indexOf("http_referrer")).toString().trimmed());
+            channel.setBaseId(query.value(rec.indexOf("base_id")).toInt());
+            channel.setName(query.value(rec.indexOf("name")).toString().trimmed());
+            channel.setPosition(query.value(rec.indexOf("position")).toInt());
+            channel.setDuration(query.value(rec.indexOf("duration")).toInt());
+            channel.setTvgId(query.value(rec.indexOf("tvg_id")).toString().trimmed());
+            channel.setTvgName(query.value(rec.indexOf("tvg_name")).toString().trimmed());
+            channel.setTvgLogo(query.value(rec.indexOf("tvg_logo")).toString().trimmed());
+            channel.setTvgEpg(query.value(rec.indexOf("tvg_epg")).toString().trimmed());
+            channel.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            channel.setGroupName(query.value(rec.indexOf("group")).toString().trimmed());
+            channel.setAudioTrack(query.value(rec.indexOf("track")).toString().trimmed());
+            channel.setRadio(query.value(rec.indexOf("radio")).toInt());
+            channel.setAspectRatio(query.value(rec.indexOf("aspect")).toString().trimmed());
+            channel.setCrop(query.value(rec.indexOf("crop")).toString().trimmed());
+            channel.setRecordable(query.value(rec.indexOf("recordable")).toInt());
+            channel.setCensored(query.value(rec.indexOf("censored")).toInt());
+            channel.setAgeRestricted(query.value(rec.indexOf("age_restrict")).toInt());
+            channel.setMono(query.value(rec.indexOf("mono")).toInt());
+            channel.setNameAsKey(query.value(rec.indexOf("name_as_key")).toInt());
+            channel.setUrlM3u(query.value(rec.indexOf("url_m3u")).toString().trimmed());
+            channel.setUrl(query.value(rec.indexOf("url")).toString().trimmed());
+            channel.setUserAgent(query.value(rec.indexOf("user_agent")).toString().trimmed());
+            channel.setHttpReferrer(query.value(rec.indexOf("http_referrer")).toString().trimmed());
 
             result.append(channel);
         }
@@ -608,40 +664,42 @@ QList<Channel> Database::getChannels(const QString &chName)
     "ORDER BY `ch`.`name`;";
     queryStr = queryStr.arg(chName);
 
-    bool res = query->exec(queryStr);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
+
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
-        while (query->next())
+        QSqlRecord rec = query.record();
+        while (query.next())
         {
             Channel channel;
-            channel.setBaseId(query->value(rec.indexOf("base_id")).toInt());
-            channel.setName(query->value(rec.indexOf("name")).toString());
-            channel.setPosition(query->value(rec.indexOf("position")).toInt());
-            channel.setDuration(query->value(rec.indexOf("duration")).toInt());
-            channel.setTvgId(query->value(rec.indexOf("tvg_id")).toString());
-            channel.setTvgName(query->value(rec.indexOf("tvg_name")).toString());
-            channel.setTvgLogo(query->value(rec.indexOf("tvg_logo")).toString());
-            channel.setTvgEpg(query->value(rec.indexOf("tvg_epg")).toString());
-            channel.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            channel.setGroupName(query->value(rec.indexOf("group")).toString());
-            channel.setAudioTrack(query->value(rec.indexOf("track")).toString());
-            channel.setRadio(query->value(rec.indexOf("radio")).toInt());
-            channel.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            channel.setCrop(query->value(rec.indexOf("crop")).toString());
-            channel.setRecordable(query->value(rec.indexOf("recordable")).toInt());
-            channel.setCensored(query->value(rec.indexOf("censored")).toInt());
-            channel.setAgeRestricted(query->value(rec.indexOf("age_restrict")).toInt());
-            channel.setMono(query->value(rec.indexOf("mono")).toInt());
-            channel.setNameAsKey(query->value(rec.indexOf("name_as_key")).toInt());
-            channel.setUrlM3u(query->value(rec.indexOf("url_m3u")).toString());
-            channel.setUrl(query->value(rec.indexOf("url")).toString());
-            channel.setUserAgent(query->value(rec.indexOf("user_agent")).toString());
-            channel.setHttpReferrer(query->value(rec.indexOf("http_referrer")).toString());
+            channel.setBaseId(query.value(rec.indexOf("base_id")).toInt());
+            channel.setName(query.value(rec.indexOf("name")).toString());
+            channel.setPosition(query.value(rec.indexOf("position")).toInt());
+            channel.setDuration(query.value(rec.indexOf("duration")).toInt());
+            channel.setTvgId(query.value(rec.indexOf("tvg_id")).toString());
+            channel.setTvgName(query.value(rec.indexOf("tvg_name")).toString());
+            channel.setTvgLogo(query.value(rec.indexOf("tvg_logo")).toString());
+            channel.setTvgEpg(query.value(rec.indexOf("tvg_epg")).toString());
+            channel.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            channel.setGroupName(query.value(rec.indexOf("group")).toString());
+            channel.setAudioTrack(query.value(rec.indexOf("track")).toString());
+            channel.setRadio(query.value(rec.indexOf("radio")).toInt());
+            channel.setAspectRatio(query.value(rec.indexOf("aspect")).toString());
+            channel.setCrop(query.value(rec.indexOf("crop")).toString());
+            channel.setRecordable(query.value(rec.indexOf("recordable")).toInt());
+            channel.setCensored(query.value(rec.indexOf("censored")).toInt());
+            channel.setAgeRestricted(query.value(rec.indexOf("age_restrict")).toInt());
+            channel.setMono(query.value(rec.indexOf("mono")).toInt());
+            channel.setNameAsKey(query.value(rec.indexOf("name_as_key")).toInt());
+            channel.setUrlM3u(query.value(rec.indexOf("url_m3u")).toString());
+            channel.setUrl(query.value(rec.indexOf("url")).toString());
+            channel.setUserAgent(query.value(rec.indexOf("user_agent")).toString());
+            channel.setHttpReferrer(query.value(rec.indexOf("http_referrer")).toString());
 
             result.append(channel);
         }
@@ -662,39 +720,38 @@ QList<Channel> Database::getChannels(int plId)
                 "JOIN `playlists` `pl` on `rel`.`playlist`=`pl`.`id` AND `pl`.`id`=%1;";
     queryStr = queryStr.arg(plId);
 
-    if (!query->exec(queryStr))
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
+
+    if (res)
     {
-        logger->error(sdb.lastError().text(), unitName);
-    }
-    else
-    {
-        QSqlRecord rec = query->record();
-        while (query->next())
+        QSqlRecord rec = query.record();
+        while (query.next())
         {
             Channel channel;
-            channel.setBaseId(query->value(rec.indexOf("base_id")).toInt());
-            channel.setName(query->value(rec.indexOf("name")).toString());
-            channel.setPosition(query->value(rec.indexOf("position")).toInt());
-            channel.setDuration(query->value(rec.indexOf("duration")).toInt());
-            channel.setTvgId(query->value(rec.indexOf("tvg_id")).toString());
-            channel.setTvgName(query->value(rec.indexOf("tvg_name")).toString());
-            channel.setTvgLogo(query->value(rec.indexOf("tvg_logo")).toString());
-            channel.setTvgEpg(query->value(rec.indexOf("tvg_epg")).toString());
-            channel.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            channel.setGroupName(query->value(rec.indexOf("group")).toString());
-            channel.setAudioTrack(query->value(rec.indexOf("track")).toString());
-            channel.setRadio(query->value(rec.indexOf("radio")).toInt());
-            channel.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            channel.setCrop(query->value(rec.indexOf("crop")).toString());
-            channel.setRecordable(query->value(rec.indexOf("recordable")).toInt());
-            channel.setCensored(query->value(rec.indexOf("censored")).toInt());
-            channel.setAgeRestricted(query->value(rec.indexOf("age_restrict")).toInt());
-            channel.setMono(query->value(rec.indexOf("mono")).toInt());
-            channel.setNameAsKey(query->value(rec.indexOf("name_as_key")).toInt());
-            channel.setUrlM3u(query->value(rec.indexOf("url_m3u")).toString());
-            channel.setUrl(query->value(rec.indexOf("url")).toString());
-            channel.setUserAgent(query->value(rec.indexOf("user_agent")).toString());
-            channel.setHttpReferrer(query->value(rec.indexOf("http_referrer")).toString());
+            channel.setBaseId(query.value(rec.indexOf("base_id")).toInt());
+            channel.setName(query.value(rec.indexOf("name")).toString());
+            channel.setPosition(query.value(rec.indexOf("position")).toInt());
+            channel.setDuration(query.value(rec.indexOf("duration")).toInt());
+            channel.setTvgId(query.value(rec.indexOf("tvg_id")).toString());
+            channel.setTvgName(query.value(rec.indexOf("tvg_name")).toString());
+            channel.setTvgLogo(query.value(rec.indexOf("tvg_logo")).toString());
+            channel.setTvgEpg(query.value(rec.indexOf("tvg_epg")).toString());
+            channel.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            channel.setGroupName(query.value(rec.indexOf("group")).toString());
+            channel.setAudioTrack(query.value(rec.indexOf("track")).toString());
+            channel.setRadio(query.value(rec.indexOf("radio")).toInt());
+            channel.setAspectRatio(query.value(rec.indexOf("aspect")).toString());
+            channel.setCrop(query.value(rec.indexOf("crop")).toString());
+            channel.setRecordable(query.value(rec.indexOf("recordable")).toInt());
+            channel.setCensored(query.value(rec.indexOf("censored")).toInt());
+            channel.setAgeRestricted(query.value(rec.indexOf("age_restrict")).toInt());
+            channel.setMono(query.value(rec.indexOf("mono")).toInt());
+            channel.setNameAsKey(query.value(rec.indexOf("name_as_key")).toInt());
+            channel.setUrlM3u(query.value(rec.indexOf("url_m3u")).toString());
+            channel.setUrl(query.value(rec.indexOf("url")).toString());
+            channel.setUserAgent(query.value(rec.indexOf("user_agent")).toString());
+            channel.setHttpReferrer(query.value(rec.indexOf("http_referrer")).toString());
 
             result.append(channel);
         }
@@ -719,44 +776,91 @@ Channel Database::getChannel(int chId)
                 "ORDER BY `ch`.`name`;";
     queryStr = queryStr.arg(chId);
 
-    bool res = query->exec(queryStr);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
+
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
 
-        while (query->next())
+        while (query.next())
         {
-            channel.setBaseId(query->value(rec.indexOf("base_id")).toInt());
-            channel.setName(query->value(rec.indexOf("name")).toString());
-            channel.setPosition(query->value(rec.indexOf("position")).toInt());
-            channel.setDuration(query->value(rec.indexOf("duration")).toInt());
-            channel.setTvgId(query->value(rec.indexOf("tvg_id")).toString());
-            channel.setTvgName(query->value(rec.indexOf("tvg_name")).toString());
-            channel.setTvgLogo(query->value(rec.indexOf("tvg_logo")).toString());
-            channel.setTvgEpg(query->value(rec.indexOf("tvg_epg")).toString());
-            channel.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            channel.setGroupName(query->value(rec.indexOf("group")).toString());
-            channel.setAudioTrack(query->value(rec.indexOf("track")).toString());
-            channel.setRadio(query->value(rec.indexOf("radio")).toInt());
-            channel.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            channel.setCrop(query->value(rec.indexOf("crop")).toString());
-            channel.setRecordable(query->value(rec.indexOf("recordable")).toInt());
-            channel.setCensored(query->value(rec.indexOf("censored")).toInt());
-            channel.setAgeRestricted(query->value(rec.indexOf("age_restrict")).toInt());
-            channel.setMono(query->value(rec.indexOf("mono")).toInt());
-            channel.setNameAsKey(query->value(rec.indexOf("name_as_key")).toInt());
-            channel.setUrlM3u(query->value(rec.indexOf("url_m3u")).toString());
-            channel.setUrl(query->value(rec.indexOf("url")).toString());
-            channel.setUserAgent(query->value(rec.indexOf("user_agent")).toString());
-            channel.setHttpReferrer(query->value(rec.indexOf("http_referrer")).toString());
+            channel.setBaseId(query.value(rec.indexOf("base_id")).toInt());
+            channel.setName(query.value(rec.indexOf("name")).toString());
+            channel.setPosition(query.value(rec.indexOf("position")).toInt());
+            channel.setDuration(query.value(rec.indexOf("duration")).toInt());
+            channel.setTvgId(query.value(rec.indexOf("tvg_id")).toString());
+            channel.setTvgName(query.value(rec.indexOf("tvg_name")).toString());
+            channel.setTvgLogo(query.value(rec.indexOf("tvg_logo")).toString());
+            channel.setTvgEpg(query.value(rec.indexOf("tvg_epg")).toString());
+            channel.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            channel.setGroupName(query.value(rec.indexOf("group")).toString());
+            channel.setAudioTrack(query.value(rec.indexOf("track")).toString());
+            channel.setRadio(query.value(rec.indexOf("radio")).toInt());
+            channel.setAspectRatio(query.value(rec.indexOf("aspect")).toString());
+            channel.setCrop(query.value(rec.indexOf("crop")).toString());
+            channel.setRecordable(query.value(rec.indexOf("recordable")).toInt());
+            channel.setCensored(query.value(rec.indexOf("censored")).toInt());
+            channel.setAgeRestricted(query.value(rec.indexOf("age_restrict")).toInt());
+            channel.setMono(query.value(rec.indexOf("mono")).toInt());
+            channel.setNameAsKey(query.value(rec.indexOf("name_as_key")).toInt());
+            channel.setUrlM3u(query.value(rec.indexOf("url_m3u")).toString());
+            channel.setUrl(query.value(rec.indexOf("url")).toString());
+            channel.setUserAgent(query.value(rec.indexOf("user_agent")).toString());
+            channel.setHttpReferrer(query.value(rec.indexOf("http_referrer")).toString());
         }
     }
 
     return channel;
+}
+
+
+/// Редактирование параметров канала
+bool Database::editChannel(const Channel &channel)
+{
+    QString queryStr = "UPDATE `channels` SET `name`='%1',`position`=%2,`duration`=%3,`tvg_id`='%4',`tvg_name`='%5',"
+        "`tvg_logo`='%6',`tvg_epg`='%7',`tvg_shift`=%8,`group`=%9,`track`=%10,`radio`=%11,`aspect`='%12',`crop`='%13',"
+        "`recordable`=%14,`censored`=%15,`age_restrict`=%16,`mono`=%17,`name_as_key`=%18,`url_m3u`='%19',`url`='%20',"
+        "`user_agent`='%21',`http_referrer`='%22' WHERE `id`=%23;";
+
+    QString esc1 = channel.getName().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, QString::number(channel.getPosition()), QString::number(channel.getDuration()));
+
+    esc1 = channel.getTvgId().replace('\'', '`');
+    QString esc2 = channel.getTvgName().replace('\'', '`');
+    QString esc3 = channel.getTvgLogo().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, esc2, esc3);
+
+    esc1 = channel.getTvgEpg().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, QString::number(channel.getTvgShift()), QString::number(channel.getGroupUid()));
+
+    queryStr = queryStr.arg(QString::number(channel.getAudioTrackUid()), channel.isRadio() ? "1" : "0", channel.getAspectRatio());
+    queryStr = queryStr.arg(channel.getCrop(), channel.isRecordable() ? "1" : "0", channel.isCensored() ? "1" : "0");
+    queryStr = queryStr.arg(channel.isAgeRestricted() ? "1" : "0", channel.isMono() ? "1" : "0", channel.isNameAsKey() ? "1" : "0");
+
+    esc1 = channel.getUrlM3u().replace('\'', '`');
+    esc2 = channel.getUrl().replace('\'', '`');
+    esc3 = channel.getUserAgent().replace('\'', '`');
+    QString esc4 = channel.getHttpReferrer().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, esc2, esc3, esc4);
+
+    queryStr = queryStr.arg(channel.getBaseId());
+
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool result = query.exec(queryStr);
+
+    if (!result)
+    {
+        QString msg = "Не удалось изменить канал %1 => %2";
+        msg = msg.arg(QString::number(channel.getBaseId()), query.lastError().text());
+        logger->error(msg, unitName);
+    }
+
+    return result;
 }
 
 
@@ -767,13 +871,16 @@ bool Database::removeChannel(int uid)
     bool result = false;
     if (uid>0)
     {
+        QSqlQuery query (QSqlDatabase::database("IptvConnection"));
         QString queryStr = "DELETE FROM `channels` WHERE `id`='%1';";
         queryStr = queryStr.arg(uid);
-        result = query->exec(queryStr);
+        result = query.exec(queryStr);
 
         if (!result)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            QString msg = "Не удалось удалить канал %1 => %2";
+            msg = msg.arg(QString::number(uid), query.lastError().text());
+            logger->error(msg, unitName);
         }
     }
 
@@ -785,14 +892,15 @@ bool Database::removeChannel(int uid)
 /// Удалить все каналы из БД
 bool Database::clearChannels()
 {
-    bool result = false;
-
-    QString queryStr = "DELETE FROM `channels';";
-    result = query->exec(queryStr);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    QString queryStr = "DELETE FROM `channels' WHERE true;";
+    bool result = query.exec(queryStr);
 
     if (!result)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        QString msg = "Не удалось удалить все каналы => %1";
+        msg = msg.arg(query.lastError().text());
+        logger->error(msg, unitName);
     }
 
     return result;
@@ -807,14 +915,19 @@ QList<Playlist> Database::addPlaylist(const Playlist &playlist)
     QString queryStr =
         "INSERT INTO `playlists` (`name`,`url_tvg`,`tvg_shift`,`cache`,`deinterlace`,`aspect`,`crop`,`refresh`,`autoload`) "
         "VALUES ('%1','%2',%3,%4,%5,'%6','%7',%8,%9); ";
-    queryStr = queryStr.arg(playlist.getName(), playlist.getUrlTvg(), QString::number(playlist.getTvgShift()));
+
+    QString esc1 = playlist.getName().replace('\'', '`');
+    QString esc2 = playlist.getUrlTvg().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, esc2, QString::number(playlist.getTvgShift()));
     queryStr = queryStr.arg(QString::number(playlist.getCache()), QString::number(playlist.getDeinterlace()), playlist.getAspectRatio());
     queryStr = queryStr.arg(playlist.getCrop(), QString::number(playlist.getRefreshPeriod()), playlist.isAutoload() ? "1" : "0");
 
-    bool res = query->exec(queryStr);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
+
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
 
     QList<Playlist> result = getPlaylists();
@@ -827,28 +940,31 @@ QList<Playlist> Database::getPlaylists()
 {
     QList<Playlist> result;
     QString queryStr = "SELECT * FROM `playlists` ORDER BY `name`;";
-    bool res = query->exec(queryStr);
+
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec(queryStr);
+
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
 
-        while (query->next())
+        while (query.next())
         {
             Playlist playlist;
-            playlist.setBaseId(query->value(rec.indexOf("id")).toInt());
-            playlist.setName(query->value(rec.indexOf("name")).toString());
-            playlist.setUrlTvg(query->value(rec.indexOf("url_tvg")).toString());
-            playlist.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            playlist.setCache(query->value(rec.indexOf("cache")).toInt());
-            playlist.setDeinterlace(query->value(rec.indexOf("deinterlace")).toInt());
-            playlist.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            playlist.setCrop(query->value(rec.indexOf("crop")).toString());
-            playlist.setRefreshPeriod(query->value(rec.indexOf("refresh")).toInt());
-            playlist.setAutoload(query->value(rec.indexOf("autoload")).toInt());
+            playlist.setBaseId(query.value(rec.indexOf("id")).toInt());
+            playlist.setName(query.value(rec.indexOf("name")).toString());
+            playlist.setUrlTvg(query.value(rec.indexOf("url_tvg")).toString());
+            playlist.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            playlist.setCache(query.value(rec.indexOf("cache")).toInt());
+            playlist.setDeinterlace(query.value(rec.indexOf("deinterlace")).toInt());
+            playlist.setAspectRatio(query.value(rec.indexOf("aspect")).toString());
+            playlist.setCrop(query.value(rec.indexOf("crop")).toString());
+            playlist.setRefreshPeriod(query.value(rec.indexOf("refresh")).toInt());
+            playlist.setAutoload(query.value(rec.indexOf("autoload")).toInt());
 
             result.append(playlist);
         }
@@ -864,29 +980,30 @@ QList<Playlist> Database::getPlaylist(const QString &plName)
     QList<Playlist> result;
     QString queryStr = "SELECT * FROM `playlists` ORDER BY `id` WHERE `name`='%1';";
     queryStr = queryStr.arg(plName);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
 
-    bool res = query->exec(queryStr);
+    bool res = query.exec(queryStr);
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
 
-        while (query->next())
+        while (query.next())
         {
             Playlist playlist;
-            playlist.setBaseId(query->value(rec.indexOf("id")).toInt());
-            playlist.setName(query->value(rec.indexOf("name")).toString());
-            playlist.setUrlTvg(query->value(rec.indexOf("url_tvg")).toString());
-            playlist.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            playlist.setCache(query->value(rec.indexOf("cache")).toInt());
-            playlist.setDeinterlace(query->value(rec.indexOf("deinterlace")).toInt());
-            playlist.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            playlist.setCrop(query->value(rec.indexOf("crop")).toString());
-            playlist.setRefreshPeriod(query->value(rec.indexOf("refresh")).toInt());
-            playlist.setAutoload(query->value(rec.indexOf("autoload")).toInt());
+            playlist.setBaseId(query.value(rec.indexOf("id")).toInt());
+            playlist.setName(query.value(rec.indexOf("name")).toString());
+            playlist.setUrlTvg(query.value(rec.indexOf("url_tvg")).toString());
+            playlist.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            playlist.setCache(query.value(rec.indexOf("cache")).toInt());
+            playlist.setDeinterlace(query.value(rec.indexOf("deinterlace")).toInt());
+            playlist.setAspectRatio(query.value(rec.indexOf("aspect")).toString());
+            playlist.setCrop(query.value(rec.indexOf("crop")).toString());
+            playlist.setRefreshPeriod(query.value(rec.indexOf("refresh")).toInt());
+            playlist.setAutoload(query.value(rec.indexOf("autoload")).toInt());
 
             result.append(playlist);
         }
@@ -902,32 +1019,40 @@ Playlist Database::getPlaylist(int uid)
     Playlist playlist;
     QString queryStr = "SELECT * FROM `playlists` WHERE `id`='%1';";
     queryStr = queryStr.arg(uid);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
 
-    bool res = query->exec(queryStr);
+    bool res = query.exec(queryStr);
     if (!res)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        QSqlRecord rec = query->record();
+        QSqlRecord rec = query.record();
 
-        while (query->next())
+        while (query.next())
         {
-            playlist.setBaseId(query->value(rec.indexOf("id")).toInt());
-            playlist.setName(query->value(rec.indexOf("name")).toString());
-            playlist.setUrlTvg(query->value(rec.indexOf("url_tvg")).toString());
-            playlist.setTvgShift(query->value(rec.indexOf("tvg_shift")).toInt());
-            playlist.setCache(query->value(rec.indexOf("cache")).toInt());
-            playlist.setDeinterlace(query->value(rec.indexOf("deinterlace")).toInt());
-            playlist.setAspectRatio(query->value(rec.indexOf("aspect")).toString());
-            playlist.setCrop(query->value(rec.indexOf("crop")).toString());
-            playlist.setRefreshPeriod(query->value(rec.indexOf("refresh")).toInt());
-            playlist.setAutoload(query->value(rec.indexOf("autoload")).toInt());
+            playlist.setBaseId(query.value(rec.indexOf("id")).toInt());
+            playlist.setName(query.value(rec.indexOf("name")).toString());
+            playlist.setUrlTvg(query.value(rec.indexOf("url_tvg")).toString());
+            playlist.setTvgShift(query.value(rec.indexOf("tvg_shift")).toInt());
+            playlist.setCache(query.value(rec.indexOf("cache")).toInt());
+            playlist.setDeinterlace(query.value(rec.indexOf("deinterlace")).toInt());
+            playlist.setAspectRatio(query.value(rec.indexOf("aspect")).toString());
+            playlist.setCrop(query.value(rec.indexOf("crop")).toString());
+            playlist.setRefreshPeriod(query.value(rec.indexOf("refresh")).toInt());
+            playlist.setAutoload(query.value(rec.indexOf("autoload")).toInt());
         }
     }
 
     return playlist;
+}
+
+
+/// Редактирование параметров плейлиста
+bool Database::editPlaylist(const Playlist &list)
+{
+
 }
 
 
@@ -939,11 +1064,12 @@ bool Database::removePlaylist(int uid)
     {
         QString queryStr = "DELETE FROM `playlists` WHERE `id`='%1';";
         queryStr = queryStr.arg(uid);
-        result = query->exec(queryStr);
+        QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+        result = query.exec(queryStr);
 
         if (!result)
         {
-            logger->error(sdb.lastError().text(), unitName);
+            logger->error(query.lastError().text(), unitName);
         }
     }
 
@@ -957,11 +1083,12 @@ bool Database::clearPlaylists()
     bool result = false;
 
     QString queryStr = "DELETE FROM `playlists`;";
-    result = query->exec(queryStr);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    result = query.exec(queryStr);
 
     if (!result)
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
 
     return result;
@@ -980,24 +1107,23 @@ bool Database::setRelation(int plId, int chId, int chPos)
     QString queryStr = "SELECT count(*) FROM `relations` WHERE playlist=%1 AND channel=%1;";
     queryStr = queryStr.arg(plId, chId);
 
-    if (!query->exec())
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool res = query.exec();
+
+    if (res)
     {
-        logger->error(sdb.lastError().text(), unitName);
-    }
-    else
-    {
-        query->first();
-        bool related = query->value(0).toInt() > 0;
+        query.first();
+        bool related = query.value(0).toInt() > 0;
         if (!related)
         {
             // Если нет, установить
             queryStr = "INSERT INTO `relations` (`playlist`, `channel`, `position`) VALUES (%1, %2, %3);";
             queryStr = queryStr.arg(plId, chId, chPos);
 
-            related = query->exec(queryStr);
+            related = query.exec(queryStr);
             if (!related)
             {
-                logger->error(sdb.lastError().text(), unitName);
+                logger->error(query.lastError().text(), unitName);
             }
         }
     }
@@ -1014,29 +1140,29 @@ bool Database::clearRelation(int plId, int chId)
     // Проверить, есть ли уже соответствие канала плейлисту
     QString queryStr = "SELECT count(*) FROM `relations` WHERE playlist=%1 AND channel=%1;";
     queryStr = queryStr.arg(plId, chId);
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
 
-    if (!query->exec())
+    if (!query.exec())
     {
-        logger->error(sdb.lastError().text(), unitName);
+        logger->error(query.lastError().text(), unitName);
     }
     else
     {
-        query->first();
-        bool related = query->value(0).toInt() > 0;
+        query.first();
+        bool related = query.value(0).toInt() > 0;
         if (related)
         {
             // Если нет, установить
             queryStr = "DELETE FROM `relations` WHERE `playlist`=%1 AND `channel`=%2;";
             queryStr = queryStr.arg(plId, chId);
 
-            related = query->exec(queryStr);
+            related = query.exec(queryStr);
             if (!related)
             {
-                logger->error(sdb.lastError().text(), unitName);
+                logger->error(query.lastError().text(), unitName);
             }
         }
     }
 
     return result;
 }
-

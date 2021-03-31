@@ -6,6 +6,7 @@
 #include <QtWidgets>
 
 #include "parser.h"
+#include "logger.h"
 #include "database.h"
 #include "formchannels.h"
 
@@ -42,6 +43,8 @@ private:
     QStatusBar *statBar;
 
     Parser *parser;
+    Logger *logger;
+    QString unitName;
     Database *sdb;
     FormChannels *formChannels;
 

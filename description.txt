@@ -1,0 +1,29 @@
+Для корректного подключения к базе данных один раз в конструкторе главной формы необходимо создать подключение, выполнив
+
+    sdb = QSqlDatabase::addDatabase("QSQLITE", "IptvConnection");
+    sdb.setConnectOptions("QSQLITE_BUSY_TIMEOUT=5000");
+    sdb.setHostName("localhost");
+    sdb.setUserName("admin");
+    sdb.setPassword("admin");
+
+    QString dbPath = QCoreApplication::applicationDirPath() + "/data.db";
+    sdb.setDatabaseName(dbPath);
+
+    // Подключение к базе данных
+    bool result = false;
+    try
+    {
+        result = sdb.open();
+    }
+    catch (...)
+    {
+        QString msg = "Не удалось подключиться к базе данных [%1]";
+        msg = msg.arg(sdb.lastError().text());
+        logger->error(msg, unitName);
+    }
+
+Далее в коде программы, когда необходимо выполнить запрос к базе данных, достаточно выполнить
+
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+
+чтобы получить ранее открытое подключение к базе данных

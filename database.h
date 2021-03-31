@@ -13,8 +13,9 @@ class Database
 {
 public:
     Database();
-    void dbInit();
-    void dbClose();
+    void initDb();
+    bool openDb();
+    void closeDb();
 
     // Группы каналов
     int addGroup(const QString &);
@@ -40,6 +41,7 @@ public:
     QList<Channel> getChannels(const QString &);
     QList<Channel> getChannels(int);
     Channel getChannel(int);
+    bool editChannel(const Channel&);
     bool removeChannel(int);
     bool clearChannels();
 
@@ -48,6 +50,7 @@ public:
     QList<Playlist> getPlaylists();
     QList<Playlist> getPlaylist(const QString &);
     Playlist getPlaylist(int);
+    bool editPlaylist(const Playlist&);
     bool removePlaylist(int);
     bool clearPlaylists();
 
@@ -57,9 +60,8 @@ public:
 
 private:
     QSqlDatabase sdb;
-    QSqlQuery *query;
     QString unitName;
-    Logger *logger;
+    Logger *logger;    
 };
 
 #endif // DATABASE_H

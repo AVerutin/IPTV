@@ -51,6 +51,7 @@ void Parser::parse()
       QString line = "";
       while(!listFile->atEnd())
       {
+          QCoreApplication::processEvents();
           line = listFile->readLine().trimmed();
           if(line.isEmpty())
             continue;
@@ -153,9 +154,6 @@ Playlist Parser::getListTitle(const QString &listTitle)
   Playlist result;
   if(!listTitle.isEmpty())
     {
-      // Анализируем строку на наличие параметров списка
-      qDebug() << listTitle;
-
       // url-tvg="..." или url-xml="..." url-tvg=\"(.+?)\"
       QRegExp re("url-tvg=\"(.*)\"");
       re.setMinimal(true);

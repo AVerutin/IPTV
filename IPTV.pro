@@ -46,3 +46,6 @@ win32 {
         RC_FILE += icon.rc
         OTHER_FILES += icon.rc
 }
+
+DISTFILES += \
+    description.txt
