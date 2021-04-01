@@ -2,6 +2,7 @@
 
 Playlist::Playlist()
 {
+    baseId = 0;
     name = "";
     urlTvg = "";
     tvgShift = 0;

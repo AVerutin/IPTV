@@ -9,6 +9,7 @@
 #include "logger.h"
 #include "database.h"
 #include "formchannels.h"
+#include "formplaylistedit.h"
 
 class FormMain : public QMainWindow
 {
@@ -47,6 +48,7 @@ private:
     QString unitName;
     Database *sdb;
     FormChannels *formChannels;
+    FormPlaylistEdit *editPlaylist;
 
 private slots:
     void slotAppClose();

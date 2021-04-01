@@ -13,6 +13,7 @@ SOURCES += \
     database.cpp \
     formchanneledit.cpp \
     formchannels.cpp \
+    formplaylistedit.cpp \
     group.cpp \
     logger.cpp \
     main.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     formchanneledit.h \
     formchannels.h \
     formmain.h \
+    formplaylistedit.h \
     group.h \
     logger.h \
     parser.h \

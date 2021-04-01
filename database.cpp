@@ -8,6 +8,23 @@ Database::Database()
 
 bool Database::openDb()
 {
+//    QString connStr = "DRIVER=SQLite3 ODBC Driver;Database=d:\\mydb.db;LongNames=0;Timeout=1000;NoTXN=0;SyncPragma=NORMAL;StepAPI=0;";
+//    sdb = QSqlDatabase::addDatabase("QODBC3");
+//    sdb.setDatabaseName(connStr);
+//    if (sdb.open())
+//    {
+//        logger->info("Connected", unitName);
+//    }
+//    else
+//    {
+//        QString msg = "Not Connected => %1";
+//        msg = msg.arg(sdb.lastError().text());
+//        logger->error(msg, unitName);
+//    }
+//    sdb.close();
+
+
+    QString dbPath = QCoreApplication::applicationDirPath() + "/data.db";
     sdb = QSqlDatabase::addDatabase("QSQLITE", "IptvConnection");
     sdb.setConnectOptions("QSQLITE_BUSY_TIMEOUT=5000");
     //  sdb.setDatabaseName("m3u.dat");
@@ -15,7 +32,6 @@ bool Database::openDb()
     //  sdb.setUserName("admin");
     //  sdb.setPassword("admin");
 
-    QString dbPath = QCoreApplication::applicationDirPath() + "/data.db";
     sdb.setDatabaseName(dbPath);
 
     // Подключение к базе данных
@@ -39,6 +55,7 @@ bool Database::openDb()
 void Database::initDb()
 {
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     // Подключение к базе данных
     if (!sdb.isOpen())
@@ -235,6 +252,7 @@ QString Database::getGroupName(int uid)
 {
     QString result;
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (uid>0)
     {
@@ -264,6 +282,7 @@ int Database::getGroupId(const QString &name)
 {
     int result = -1;
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (name.size()>0)
     {
@@ -293,6 +312,7 @@ QList<Group> Database::getGroups()
 {
     QList<Group> result;
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (!query.exec("SELECT `id`, `group` FROM `groups` ORDER BY `group`;"))
     {
@@ -406,6 +426,7 @@ QString Database::getTrackName(int uid)
 {
     QString result;
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (uid>0)
     {
@@ -435,6 +456,7 @@ int Database::getTrackId(const QString &name)
 {
     int result = -1;
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (name.size()>0)
     {
@@ -464,6 +486,7 @@ QList<Track> Database::getTracks()
 {
     QList<Track> result;
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (!query.exec("SELECT `id`, `track` FROM `tracks` ORDER BY `track`;"))
     {
@@ -605,6 +628,7 @@ QList<Channel> Database::getChannels()
     "ORDER BY `gr`.`group`, `ch`.`name`;";
 
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
     bool res = query.exec(queryStr);
 
     if (!res)
@@ -665,6 +689,7 @@ QList<Channel> Database::getChannels(const QString &chName)
     queryStr = queryStr.arg(chName);
 
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
     bool res = query.exec(queryStr);
 
     if (!res)
@@ -721,6 +746,7 @@ QList<Channel> Database::getChannels(int plId)
     queryStr = queryStr.arg(plId);
 
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
     bool res = query.exec(queryStr);
 
     if (res)
@@ -777,6 +803,7 @@ Channel Database::getChannel(int chId)
     queryStr = queryStr.arg(chId);
 
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
     bool res = query.exec(queryStr);
 
     if (!res)
@@ -942,6 +969,7 @@ QList<Playlist> Database::getPlaylists()
     QString queryStr = "SELECT * FROM `playlists` ORDER BY `name`;";
 
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
     bool res = query.exec(queryStr);
 
     if (!res)
@@ -981,6 +1009,7 @@ QList<Playlist> Database::getPlaylist(const QString &plName)
     QString queryStr = "SELECT * FROM `playlists` ORDER BY `id` WHERE `name`='%1';";
     queryStr = queryStr.arg(plName);
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     bool res = query.exec(queryStr);
     if (!res)
@@ -1020,6 +1049,7 @@ Playlist Database::getPlaylist(int uid)
     QString queryStr = "SELECT * FROM `playlists` WHERE `id`='%1';";
     queryStr = queryStr.arg(uid);
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     bool res = query.exec(queryStr);
     if (!res)
@@ -1052,7 +1082,30 @@ Playlist Database::getPlaylist(int uid)
 /// Редактирование параметров плейлиста
 bool Database::editPlaylist(const Playlist &list)
 {
+    QString queryStr =
+            "UPDATE `playlists` SET `name`='%1',`url_tvg`='%2',`tvg_shift`=%3,`cache`=%4,"
+                "`deinterlace`=%5,`aspect`='%6',`crop`='%7',`refresh`=%8,`autoload`=%9"
+            "WHERE `id`=%10;";
 
+    QString esc1 = list.getName().replace('\'', '`');
+    QString esc2 = list.getUrlTvg().replace('\'', '`');
+    queryStr = queryStr.arg(esc1, esc2, QString::number(list.getTvgShift()));
+
+    queryStr = queryStr.arg(QString::number(list.getCache()), QString::number(list.getDeinterlace()), list.getAspectRatio());
+    queryStr = queryStr.arg(list.getCrop(), QString::number(list.getRefreshPeriod()), list.isAutoload() ? "1" : "0");
+    queryStr = queryStr.arg(list.getBaseId());
+
+    QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    bool result = query.exec(queryStr);
+
+    if (!result)
+    {
+        QString msg = "Не удалось изменить канал %1 => %2";
+        msg = msg.arg(QString::number(list.getBaseId()), query.lastError().text());
+        logger->error(msg, unitName);
+    }
+
+    return result;
 }
 
 
@@ -1108,11 +1161,11 @@ bool Database::setRelation(int plId, int chId, int chPos)
     queryStr = queryStr.arg(plId, chId);
 
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
     bool res = query.exec();
 
     if (res)
     {
-        query.first();
         bool related = query.value(0).toInt() > 0;
         if (!related)
         {
@@ -1141,6 +1194,7 @@ bool Database::clearRelation(int plId, int chId)
     QString queryStr = "SELECT count(*) FROM `relations` WHERE playlist=%1 AND channel=%1;";
     queryStr = queryStr.arg(plId, chId);
     QSqlQuery query (QSqlDatabase::database("IptvConnection"));
+    query.setForwardOnly(true);
 
     if (!query.exec())
     {

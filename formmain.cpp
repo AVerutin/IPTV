@@ -199,6 +199,11 @@ void FormMain::slotAppClose()
 /// Слот для создания списка воспроизведения
 void FormMain::slotCreatePlaylist()
 {
+    Playlist pl;
+    FormPlaylistEdit *addPlaylist = new FormPlaylistEdit(this);
+    addPlaylist->exec();
+    pl = addPlaylist->getPlaylist();
+    delete addPlaylist;
 
 }
 
@@ -206,7 +211,18 @@ void FormMain::slotCreatePlaylist()
 /// Слот для редактирования списка воспроизведения
 void FormMain::slotEditPlaylist()
 {
+    Playlist pl;
+    pl.setName("Мегафон");
+    pl.setAspectRatio("16*9");
+    pl.setCache(3500);
+    pl.setAutoload(true);
+    pl.setRefreshPeriod(600);
+    pl.setDeinterlace(1);
 
+    FormPlaylistEdit *editList = new FormPlaylistEdit(this);
+    editList->editPlaylist(pl);
+    editList->exec();
+    pl = editList->getPlaylist();
 }
 
 
